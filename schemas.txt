@@ -1,0 +1,15 @@
+table: photo
+attributes:
+	id (str)
+	title (str)
+	caption (str)
+	upload_date (timestamp)
+	image_endpoint (str)
+	placeholder_endpoint (str)
+	
+table: account
+attributes:
+	id (str)
+	username (str)
+	password_hash (str)
+
