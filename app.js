@@ -8,7 +8,7 @@ const multer = require("multer");
 const express = require("express");
 const bodyParser = require("body-parser");
 const db = require("./db"); // make sure db.js exports connect()
-const PORT = process.env.API_PORT || 3000;
+const PORT = process.env.API_PORT;
 const app = express();
 
 app.use(bodyParser.json());
@@ -21,19 +21,20 @@ app.use(
 const photosTable = "photo";
 const accountsTable = "account";
 
-const temp_image_path = process.env.TEMP_IMAGE_FILE_PATH || "uploads/tmp";
-const original_scale_image_path = process.env.ORIGINAL_SCALE_IMAGE_FILE_PATH || "uploads/original";
-const full_scale_image_path = process.env.FULL_SCALE_IMAGE_FILE_PATH || "uploads/full";
-const down_scale_image_path = process.env.DOWN_SCALE_IMAGE_FILE_PATH || "uploads/down";
+const base_path = "/var/www/gaby-shared-album"
+const temp_image_path = process.env.TEMP_IMAGE_FILE_PATH;
+const original_scale_image_path = process.env.ORIGINAL_SCALE_IMAGE_FILE_PATH;
+const full_scale_image_path = process.env.FULL_SCALE_IMAGE_FILE_PATH;
+const down_scale_image_path = process.env.DOWN_SCALE_IMAGE_FILE_PATH;
 
 for (const dir of [temp_image_path, original_scale_image_path, full_scale_image_path, down_scale_image_path]) {
-        if (!fssync.existsSync(dir)) fssync.mkdirSync(dir, { recursive: true });
+        if (!fssync.existsSync(`${base_path}/${dir}`)) fssync.mkdirSync(`${base_path}/${dir}`, { recursive: true });
 }
 
 
 const storage = multer.diskStorage({
         destination: (req, file, cb) => {
-                cb(null, temp_image_path);
+                cb(null, `${base_path}/${temp_image_path}`);
         },
         filename: (req, file, cb) => {
                 cb(null, Date.now() + "-" + file.originalname);
@@ -110,9 +111,9 @@ app.post("/api/photo", async (req, res) => {
                 
                 // 4) Create downsized + full scale images
                 const ext = path.extname(req.file.originalname) || (req.file.mimetype === "image/png" ? ".png" : ".jpg");
-                origPath = path.join(original_scale_image_path, `${hash}_orig${ext}`);
-                fullPath = path.join(full_scale_image_path, `${hash}_full${ext}`);
-                downPath = path.join(down_scale_image_path, `${hash}_down${ext}`);
+                const origPath = path.join(base_path, original_scale_image_path, `${hash}_orig${ext}`);
+                const fullPath = path.join(base_path, full_scale_image_path, `${hash}_full${ext}`);
+                const downPath = path.join(base_path, down_scale_image_path, `${hash}_down${ext}`);
 
                 // Original: move temp file
                 await fs.rename(tempPath, origPath);
@@ -123,14 +124,14 @@ app.post("/api/photo", async (req, res) => {
                 // Downscale tiny blurry placeholder
                 await sharp(fileBuffer).resize(20).blur(10).toFile(downPath);
 
-                const imageEndpoint = `media/photo/${path.basename(fullPath)}`;
-                const placeholderEndpoint = `media/photo/${path.basename(downPath)}`;
+                const imageEndpoint = `media/${path.basename(fullPath)}`;
+                const placeholderEndpoint = `media/${path.basename(downPath)}`;
 
                 // 5) Insert row into DB
                 const result = await client.query(
                         `INSERT INTO ${photosTable} (id, title, caption, upload_date, image_endpoint, placeholder_endpoint)
                         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-                        [hash, title, caption, dateOnly, imageEndpoint, placeholderEndpoint],
+                        [hash, title, caption, dateOnly, full_scale_image_path, down_scale_image_path],
                 );
 
                 await client.query("COMMIT");
