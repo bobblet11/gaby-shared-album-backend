@@ -68,79 +68,77 @@ app.get("/api/photo/:id", async (req, res) => {
 
 app.post("/api/photo", async (req, res) => {
         let client;
-        let origPath = path.join(base_path, original_scale_image_path, `${hash}_orig${ext}`);
-        let fullPath = path.join(base_path, full_scale_image_path, `${hash}_full${ext}`);
-        let downPath = path.join(base_path, down_scale_image_path, `${hash}_down${ext}`);
         try {
                 client = await db.connect();
                 await client.query("BEGIN");
 
-                // 1) Parse multipart form manually via Multer
+                // Use Multer for multiple files
                 await new Promise((resolve, reject) => {
-                        upload.single(image_form_field)(req, res, (err) => {
+                        upload.array(image_form_field)(req, res, (err) => {
                                 if (err) reject(err);
                                 else resolve();
                         });
                 });
-                if (!req.file) throw new Error("No file uploaded");
-            
-                // 2) Get db fields
+                if (!req.files || req.files.length === 0) throw new Error("No files uploaded");
+
                 const { title, caption } = req.body;
                 const now = new Date();
                 const dateTime = now.toISOString();
                 const dateOnly = dateTime.split("T")[0];
 
-                
+                const results = [];
 
-                // 3) Create hash using image + metadata + current time
-                const tempPath = req.file.path;
-                const fileBuffer = await fs.readFile(tempPath);
-                const hash = crypto
-                        .createHash("sha256")
-                        .update(fileBuffer)
-                        .update(title || "")
-                        .update(caption || "")
-                        .update(dateTime)
-                        .digest("hex");
+                for (const file of req.files) {
+                        const tempPath = file.path;
+                        const fileBuffer = await fs.readFile(tempPath);
 
-                
-                const dup = await client.query(`SELECT id FROM ${photosTable} WHERE id = $1`, [hash]);
-                if (dup.rows.length > 0) {
-                        // cleanup temp and return existing row
-                        await fs.unlink(tempPath).catch(() => {});
-                        const existing = await client.query(`SELECT * FROM ${photosTable} WHERE id = $1`, [hash]);
-                        await client.query("COMMIT");
-                        return res.json(existing.rows[0]);
+                        // Hash per file (metadata optional)
+                        const hash = crypto
+                                .createHash("sha256")
+                                .update(fileBuffer)
+                                .update(title || "")
+                                .update(caption || "")
+                                .update(dateTime)
+                                .digest("hex");
+
+                        // Check duplicates
+                        const dup = await client.query(`SELECT id FROM ${photosTable} WHERE id = $1`, [hash]);
+                        if (dup.rows.length > 0) {
+                                await fs.unlink(tempPath).catch(() => {});
+                                const existing = await client.query(`SELECT * FROM ${photosTable} WHERE id = $1`, [hash]);
+                                results.push(existing.rows[0]);
+                                continue;
+                        }
+
+                        // File paths
+                        const ext = path.extname(file.originalname) || (file.mimetype === "image/png" ? ".png" : ".jpg");
+                        const origPath = path.join(base_path, original_scale_image_path, `${hash}_orig${ext}`);
+                        const fullPath = path.join(base_path, full_scale_image_path, `${hash}_full${ext}`);
+                        const downPath = path.join(base_path, down_scale_image_path, `${hash}_down${ext}`);
+
+                        // Move original
+                        await fs.rename(tempPath, origPath);
+
+                        // Full scale
+                        await sharp(fileBuffer).resize({ width: 1200 }).jpeg({ quality: 80 }).toFile(fullPath);
+
+                        // Downscale placeholder
+                        await sharp(fileBuffer).resize(20).blur(10).toFile(downPath);
+
+                        const imageEndpoint = path.join(full_scale_image_path, `${hash}_full${ext}`);
+                        const placeholderEndpoint = path.join(down_scale_image_path, `${hash}_down${ext}`);
+
+                        // Insert row — if title/caption are empty, store NULL
+                        const result = await client.query(
+                                `INSERT INTO ${photosTable} (id, title, caption, upload_date, image_endpoint, placeholder_endpoint)
+                 VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+                                [hash, title && title.trim() ? title : null, caption && caption.trim() ? caption : null, dateOnly, imageEndpoint, placeholderEndpoint],
+                        );
+                        results.push(result.rows[0]);
                 }
-                
-                
-                // 4) Create downsized + full scale images
-                const ext = path.extname(req.file.originalname) || (req.file.mimetype === "image/png" ? ".png" : ".jpg");
-                origPath = path.join(base_path, original_scale_image_path, `${hash}_orig${ext}`);
-                fullPath = path.join(base_path, full_scale_image_path, `${hash}_full${ext}`);
-                downPath = path.join(base_path, down_scale_image_path, `${hash}_down${ext}`);
-
-                // Original: move temp file
-                await fs.rename(tempPath, origPath);
-
-                // Full scale (~1MB target)
-                await sharp(fileBuffer).resize({ width: 1200 }).jpeg({ quality: 80 }).toFile(fullPath);
-
-                // Downscale tiny blurry placeholder
-                await sharp(fileBuffer).resize(20).blur(10).toFile(downPath);
-
-                const imageEndpoint = path.join(full_scale_image_path, `${hash}_full${ext}`);
-                const placeholderEndpoint = path.join(down_scale_image_path, `${hash}_down${ext}`);
-
-                // 5) Insert row into DB
-                const result = await client.query(
-                        `INSERT INTO ${photosTable} (id, title, caption, upload_date, image_endpoint, placeholder_endpoint)
-                        VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-                        [hash, title, caption, dateOnly, imageEndpoint, placeholderEndpoint]
-                );
 
                 await client.query("COMMIT");
-                res.json(result.rows[0]);
+                res.json(results); // return array of inserted/duplicate rows
         } catch (err) {
                 console.error("Upload error:", err);
                 if (client) {
@@ -150,9 +148,6 @@ app.post("/api/photo", async (req, res) => {
                                 console.error("Rollback failed", e);
                         }
                 }
-                await fs.unlink(fullPath).catch(() => { });
-                await fs.unlink(downPath).catch(() => {});
-                await fs.unlink(origPath).catch(() => {});
                 res.status(500).send("Internal Server Error");
         } finally {
                 if (client) client.release();
