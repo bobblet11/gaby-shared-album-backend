@@ -18,7 +18,7 @@ app.use(
         }),
 );
 
-const photosTable = "photo";
+const photosTable = "photos";
 const accountsTable = "account";
 
 const base_path = "/var/www/gaby-shared-album"
@@ -45,7 +45,9 @@ const image_form_field = "image";
 
 app.get("/api/photo", async (req, res) => {
         try {
+                console.log("HERE");
                 const result = await db.query(`SELECT * FROM ${photosTable}`);
+                console.log(result.rows);
                 res.json(result.rows);
         } catch (err) {
                 console.error(err);
@@ -131,7 +133,9 @@ app.post("/api/photo", async (req, res) => {
                 const result = await client.query(
                         `INSERT INTO ${photosTable} (id, title, caption, upload_date, image_endpoint, placeholder_endpoint)
                         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-                        [hash, title, caption, dateOnly, full_scale_image_path, down_scale_image_path],
+                        [hash, title, caption, dateOnly, 
+                            path.join(full_scale_image_path, `${hash}_full${ext}`), 
+                            path.join(down_scale_image_path, `${hash}_down${ext}`)],
                 );
 
                 await client.query("COMMIT");
