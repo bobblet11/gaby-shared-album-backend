@@ -68,6 +68,9 @@ app.get("/api/photo/:id", async (req, res) => {
 
 app.post("/api/photo", async (req, res) => {
         let client;
+        let origPath = path.join(base_path, original_scale_image_path, `${hash}_orig${ext}`);
+        let fullPath = path.join(base_path, full_scale_image_path, `${hash}_full${ext}`);
+        let downPath = path.join(base_path, down_scale_image_path, `${hash}_down${ext}`);
         try {
                 client = await db.connect();
                 await client.query("BEGIN");
@@ -113,9 +116,9 @@ app.post("/api/photo", async (req, res) => {
                 
                 // 4) Create downsized + full scale images
                 const ext = path.extname(req.file.originalname) || (req.file.mimetype === "image/png" ? ".png" : ".jpg");
-                const origPath = path.join(base_path, original_scale_image_path, `${hash}_orig${ext}`);
-                const fullPath = path.join(base_path, full_scale_image_path, `${hash}_full${ext}`);
-                const downPath = path.join(base_path, down_scale_image_path, `${hash}_down${ext}`);
+                origPath = path.join(base_path, original_scale_image_path, `${hash}_orig${ext}`);
+                fullPath = path.join(base_path, full_scale_image_path, `${hash}_full${ext}`);
+                downPath = path.join(base_path, down_scale_image_path, `${hash}_down${ext}`);
 
                 // Original: move temp file
                 await fs.rename(tempPath, origPath);
@@ -126,16 +129,14 @@ app.post("/api/photo", async (req, res) => {
                 // Downscale tiny blurry placeholder
                 await sharp(fileBuffer).resize(20).blur(10).toFile(downPath);
 
-                const imageEndpoint = `media/${path.basename(fullPath)}`;
-                const placeholderEndpoint = `media/${path.basename(downPath)}`;
+                const imageEndpoint = path.join(full_scale_image_path, `${hash}_full${ext}`);
+                const placeholderEndpoint = path.join(down_scale_image_path, `${hash}_down${ext}`);
 
                 // 5) Insert row into DB
                 const result = await client.query(
                         `INSERT INTO ${photosTable} (id, title, caption, upload_date, image_endpoint, placeholder_endpoint)
                         VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
-                        [hash, title, caption, dateOnly, 
-                            path.join(full_scale_image_path, `${hash}_full${ext}`), 
-                            path.join(down_scale_image_path, `${hash}_down${ext}`)],
+                        [hash, title, caption, dateOnly, imageEndpoint, placeholderEndpoint]
                 );
 
                 await client.query("COMMIT");
@@ -149,11 +150,56 @@ app.post("/api/photo", async (req, res) => {
                                 console.error("Rollback failed", e);
                         }
                 }
+                await fs.unlink(fullPath).catch(() => { });
+                await fs.unlink(downPath).catch(() => {});
+                await fs.unlink(origPath).catch(() => {});
                 res.status(500).send("Internal Server Error");
         } finally {
                 if (client) client.release();
         }
 });
+
+app.post("/api/photo/delete", async (req, res) => {
+        let client;
+        try {
+                client = await db.connect();
+                await client.query("BEGIN");
+
+                const { imageEndpoint, placeholderEndpoint } = req.body;
+                if (!imageEndpoint) return res.status(400).send("Missing imageEndpoint");
+                if (!placeholderEndpoint) return res.status(400).send("Missing placeholderEndpoint");
+
+                // Extract the hash (id) from the filename
+                const fileName = path.basename(imageEndpoint); // e.g. "abc123_full.jpg"
+                const imageId = fileName.split("_")[0]; // → "abc123"
+
+                const fullPath = path.join(base_path, imageEndpoint);
+                const downPath = path.join(base_path, placeholderEndpoint);
+
+                await fs.unlink(fullPath).catch(() => {});
+                await fs.unlink(downPath).catch(() => {});
+
+                const result = await client.query(`DELETE FROM ${photosTable} WHERE id = $1 RETURNING *`, [imageId]);
+
+                await client.query("COMMIT");
+                if (result.rows.length === 0) return res.status(404).send("Not found");
+                res.json(result.rows[0]);
+        } catch (err) {
+                console.error("Delete error:", err);
+                if (client) {
+                        try {
+                                await client.query("ROLLBACK");
+                        } catch (e) {
+                                console.error("Rollback failed", e);
+                        }
+                }
+                res.status(500).send("Internal Server Error");
+        } finally {
+                if (client) client.release();
+        }
+});
+
+
 
 app.listen(PORT, (error) => {
         if (!error) {
