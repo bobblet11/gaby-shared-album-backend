@@ -11,12 +11,9 @@ const db = require("./db"); // make sure db.js exports connect()
 const PORT = process.env.API_PORT;
 const app = express();
 
-app.use(bodyParser.json());
-app.use(
-        bodyParser.urlencoded({
-                extended: true,
-        }),
-);
+app.use(bodyParser.json({ limit: '50mb' }));
+app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
+
 
 const photosTable = "photos";
 const accountsTable = "account";
@@ -45,40 +42,34 @@ const image_form_field = "image";
 
 app.get("/api/photo", async (req, res) => {
         try {
-                console.log("HERE");
+                console.log("Request to load all images received");
                 const result = await db.query(`SELECT * FROM ${photosTable}`);
-                console.log(result.rows);
                 res.json(result.rows);
         } catch (err) {
-                console.error(err);
+                console.log(err);
                 res.status(500).send("Internal Server Error");
         }
 });
 
 app.get("/api/photo/:id", async (req, res) => {
         try {
+                console.log("Request to load a image received");
                 const result = await db.query(`SELECT * FROM ${photosTable} WHERE id = $1`, [req.params.id]);
                 if (result.rows.length === 0) return res.status(404).send("Not found");
                 res.json(result.rows[0]);
         } catch (err) {
-                console.error(err);
+                console.log(err);
                 res.status(500).send("Internal Server Error");
         }
 });
 
-app.post("/api/photo", async (req, res) => {
+app.post("/api/photo", upload.array(image_form_field), async (req, res) => {
         let client;
         try {
+                console.log("Request to upload images received");
                 client = await db.connect();
                 await client.query("BEGIN");
 
-                // Use Multer for multiple files
-                await new Promise((resolve, reject) => {
-                        upload.array(image_form_field)(req, res, (err) => {
-                                if (err) reject(err);
-                                else resolve();
-                        });
-                });
                 if (!req.files || req.files.length === 0) throw new Error("No files uploaded");
 
                 const { title, caption } = req.body;
@@ -140,12 +131,12 @@ app.post("/api/photo", async (req, res) => {
                 await client.query("COMMIT");
                 res.json(results); // return array of inserted/duplicate rows
         } catch (err) {
-                console.error("Upload error:", err);
+                console.log("Upload error:", err);
                 if (client) {
                         try {
                                 await client.query("ROLLBACK");
                         } catch (e) {
-                                console.error("Rollback failed", e);
+                                console.log("Rollback failed", e);
                         }
                 }
                 res.status(500).send("Internal Server Error");
@@ -180,12 +171,12 @@ app.post("/api/photo/delete", async (req, res) => {
                 if (result.rows.length === 0) return res.status(404).send("Not found");
                 res.json(result.rows[0]);
         } catch (err) {
-                console.error("Delete error:", err);
+                console.log("Delete error:", err);
                 if (client) {
                         try {
                                 await client.query("ROLLBACK");
                         } catch (e) {
-                                console.error("Rollback failed", e);
+                                console.log("Rollback failed", e);
                         }
                 }
                 res.status(500).send("Internal Server Error");
@@ -196,10 +187,11 @@ app.post("/api/photo/delete", async (req, res) => {
 
 
 
-app.listen(PORT, (error) => {
+const server = app.listen(PORT, (error) => {
         if (!error) {
                 console.log("Server is Successfully Running, and App is listening on port " + PORT);
         } else {
                 console.log("Error occurred, server can't start", error);
         }
 });
+server.setTimeout(10 * 60 * 1000);
