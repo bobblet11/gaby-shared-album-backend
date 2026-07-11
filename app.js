@@ -111,10 +111,10 @@ app.post("/api/photo", upload.array(image_form_field), async (req, res) => {
                         await fs.rename(tempPath, origPath);
 
                         // Full scale
-                        await sharp(fileBuffer).resize({ width: 1200 }).jpeg({ quality: 80 }).toFile(fullPath);
+                        await sharp(fileBuffer).rotate().withMetadata().resize({ width: 1200 }).jpeg({ quality: 80 }).toFile(fullPath);
 
                         // Downscale placeholder
-                        await sharp(fileBuffer).resize(20).blur(10).toFile(downPath);
+                        await sharp(fileBuffer).rotate().withMetadata().resize(20).blur(10).toFile(downPath);
 
                         const imageEndpoint = path.join(full_scale_image_path, `${hash}_full${ext}`);
                         const placeholderEndpoint = path.join(down_scale_image_path, `${hash}_down${ext}`);
