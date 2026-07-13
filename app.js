@@ -41,7 +41,7 @@ const image_form_field = "image";
 app.get("/api/photo", async (req, res) => {
         try {
                 console.log("Request to load all images received");
-                const result = await db.query(`SELECT * FROM ${photosTable}`);
+                const result = await db.query(`SELECT * FROM ${photosTable} ORDER BY RANDOM()`);
                 res.json(result.rows);
         } catch (err) {
                 console.log(err);
