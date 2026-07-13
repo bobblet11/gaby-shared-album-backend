@@ -33,7 +33,7 @@ sudo nginx -t
 
 # ---------------------------------------------------------------------------- #
 echo "Restarting NGINX..."
-sudo systemctl reload nginx
+sudo systemctl start nginx
 
 # ---------------------------------------------------------------------------- #
 echo "Installing dependencies..."
