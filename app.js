@@ -120,7 +120,7 @@ app.post("/api/photo", upload.array(image_form_field), async (req, res) => {
                         // Insert row — if title/caption are empty, store NULL
                         const result = await client.query(
                                 `INSERT INTO ${photosTable} (id, title, caption, upload_date, image_endpoint, placeholder_endpoint)
-                 VALUES ($1, $2, $3, $4, $5, $6) RETURNING *`,
+                 VALUES ($1, $2, $3, $4, $5, $6) ORDER BY RAND RETURNING *`,
                                 [hash, title && title.trim() ? title : null, caption && caption.trim() ? caption : null, dateOnly, imageEndpoint, placeholderEndpoint],
                         );
                         results.push(result.rows[0]);
