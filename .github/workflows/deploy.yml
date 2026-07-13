@@ -21,7 +21,10 @@ jobs:
                 key: ${{ secrets.SSH_PRIVATE_KEY }}
                 script: |
                   cd ~/Dev/gaby/gaby-shared-album-backend
-
+                  
+                  echo "Pulling latest code..."
+                  git pull origin main
+                  
                   # Recreate .env file from GitHub Secrets
                   cat > .env <<EOF
                   DB_USER=${{ secrets.DB_USER }}

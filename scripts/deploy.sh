@@ -18,10 +18,6 @@ sudo systemctl stop nginx
 pm2 stop backend-server || true
 
 # ---------------------------------------------------------------------------- #
-echo "Pulling latest code..."
-git pull origin main
-
-# ---------------------------------------------------------------------------- #
 echo "Restarting Postgres..."
 sudo systemctl restart postgresql
 
