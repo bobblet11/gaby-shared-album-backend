@@ -24,5 +24,6 @@ server {
     location /media/ {
         alias /var/www/gaby-shared-album/;
         autoindex off;  # set to 'on' if you want directory listing
+	proxy_request_buffering on;
     }
 }
