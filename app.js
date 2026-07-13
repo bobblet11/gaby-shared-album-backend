@@ -11,14 +11,13 @@ const db = require("./db"); // make sure db.js exports connect()
 const PORT = process.env.API_PORT;
 const app = express();
 
-app.use(bodyParser.json({ limit: '50mb' }));
-app.use(bodyParser.urlencoded({ limit: '50mb', extended: true }));
-
+app.use(bodyParser.json({ limit: "50mb" }));
+app.use(bodyParser.urlencoded({ limit: "50mb", extended: true }));
 
 const photosTable = "photos";
 const accountsTable = "account";
 
-const base_path = "/var/www/gaby-shared-album"
+const base_path = "/var/www/gaby-shared-album";
 const temp_image_path = process.env.TEMP_IMAGE_FILE_PATH;
 const original_scale_image_path = process.env.ORIGINAL_SCALE_IMAGE_FILE_PATH;
 const full_scale_image_path = process.env.FULL_SCALE_IMAGE_FILE_PATH;
@@ -27,7 +26,6 @@ const down_scale_image_path = process.env.DOWN_SCALE_IMAGE_FILE_PATH;
 for (const dir of [temp_image_path, original_scale_image_path, full_scale_image_path, down_scale_image_path]) {
         if (!fssync.existsSync(`${base_path}/${dir}`)) fssync.mkdirSync(`${base_path}/${dir}`, { recursive: true });
 }
-
 
 const storage = multer.diskStorage({
         destination: (req, file, cb) => {
@@ -148,6 +146,7 @@ app.post("/api/photo", upload.array(image_form_field), async (req, res) => {
 app.post("/api/photo/delete", async (req, res) => {
         let client;
         try {
+                console.log("Request to delete image received");
                 client = await db.connect();
                 await client.query("BEGIN");
 
@@ -185,7 +184,45 @@ app.post("/api/photo/delete", async (req, res) => {
         }
 });
 
+app.post("/api/photo/edit", async (req, res) => {
+        let client;
+        try {
+                console.log("Request to edit image received");
+                client = await db.connect();
+                await client.query("BEGIN");
 
+                let { title, caption, imageEndpoint } = req.body;
+                if (!title){
+                        title=""
+                };
+                if (!caption) {
+                        title=""
+                };
+                if (!imageEndpoint) return res.status(400).send("Missing imageEndpoint");
+
+                // Extract the hash (id) from the filename
+                const fileName = path.basename(imageEndpoint); // e.g. "abc123_full.jpg"
+                const imageId = fileName.split("_")[0]; // → "abc123"
+
+                const result = await client.query(`UPDATE ${photosTable} SET title = $1, caption = $2 WHERE id = $3 RETURNING *`, [title, caption, imageId]);
+                await client.query("COMMIT");
+
+                if (result.rows.length === 0) return res.status(404).send("Not found");
+                res.json(result.rows[0]);
+        } catch (err) {
+                console.log("Update error:", err);
+                if (client) {
+                        try {
+                                await client.query("ROLLBACK");
+                        } catch (e) {
+                                console.log("Rollback failed", e);
+                        }
+                }
+                res.status(500).send("Internal Server Error");
+        } finally {
+                if (client) client.release();
+        }
+});
 
 const server = app.listen(PORT, (error) => {
         if (!error) {
