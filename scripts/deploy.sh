@@ -32,10 +32,6 @@ sudo ln -sf /etc/nginx/sites-available/gaby-shared-album.com /etc/nginx/sites-en
 sudo nginx -t
 
 # ---------------------------------------------------------------------------- #
-echo "Restarting NGINX..."
-sudo systemctl start nginx
-
-# ---------------------------------------------------------------------------- #
 echo "Installing dependencies..."
 npm install
 
@@ -43,6 +39,9 @@ npm install
 echo "Restarting node backend service"
 pm2 restart backend-server || pm2 start app.js --name backend-server
 
+# ---------------------------------------------------------------------------- #
+echo "Restarting NGINX..."
+sudo systemctl start nginx
 
 
 
