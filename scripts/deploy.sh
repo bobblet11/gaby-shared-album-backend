@@ -37,7 +37,7 @@ npm install
 
 # ---------------------------------------------------------------------------- #
 echo "Restarting node backend service"
-pm2 restart backend-server || pm2 start app.js --name backend-server
+pm2 restart backend-server --update-env || pm2 start app.js --name backend-server 
 
 # ---------------------------------------------------------------------------- #
 echo "Restarting NGINX..."
