@@ -1,0 +1,47 @@
+name: Deploy
+
+on:
+    push:
+        branches:
+            - main
+
+jobs:
+    build:
+        runs-on: ubuntu-latest
+        steps:
+            - name: Checkout code
+              uses: actions/checkout@v4
+
+            - name: Deploy to server
+              uses: appleboy/ssh-action@v0.1.10
+              with:
+                host: ${{ secrets.SSH_IP }}
+                username: ${{ secrets.SSH_USER }}
+                key: ${{ secrets.SSH_PRIVATE_KEY }}
+                script: |
+                  cd ~/Dev/gaby/gaby-shared-album-backend
+
+                  # Recreate .env file from GitHub Secrets
+                  cat > .env <<EOF
+                  DB_USER=${{ secrets.DB_USER }}
+                  DB_PASS=${{ secrets.DB_PASS }}
+                  DB_NAME=${{ vars.DB_NAME }}
+                  DB_HOST=${{ vars.DB_HOST }}
+                  DB_PORT=${{ vars.DB_PORT }}
+                  API_PORT=${{ vars.API_PORT }}
+                  DOWN_SCALE_IMAGE_FILE_PATH=${{ vars.DOWN_SCALE_IMAGE_FILE_PATH }}
+                  FULL_SCALE_IMAGE_FILE_PATH=${{ vars.FULL_SCALE_IMAGE_FILE_PATH }}
+                  ORIGINAL_SCALE_IMAGE_FILE_PATH=${{ vars.ORIGINAL_SCALE_IMAGE_FILE_PATH }}
+                  TEMP_IMAGE_FILE_PATH=${{ vars.TEMP_IMAGE_FILE_PATH }}
+                  EOF
+
+                  # Run your scripts
+                  bash ./scripts/deploy.sh
+
+                  # Ensure PM2 persists across reboots
+                  pm2 startup systemd -u ${{ secrets.SSH_USER }} --hp /home/${{ secrets.SSH_USER }}
+                  pm2 save
+
+
+
+
