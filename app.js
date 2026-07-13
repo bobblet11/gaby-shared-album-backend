@@ -190,14 +190,9 @@ app.post("/api/photo/edit", async (req, res) => {
                 console.log("Request to edit image received");
                 client = await db.connect();
                 await client.query("BEGIN");
+                const title = req.body.title ?? null
+                const caption = req.body.caption ?? null;
 
-                let { title, caption, imageEndpoint } = req.body;
-                if (!title){
-                        title=""
-                };
-                if (!caption) {
-                        title=""
-                };
                 if (!imageEndpoint) return res.status(400).send("Missing imageEndpoint");
 
                 // Extract the hash (id) from the filename
