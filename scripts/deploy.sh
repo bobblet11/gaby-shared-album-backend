@@ -23,7 +23,7 @@ sudo systemctl restart postgresql
 
 # ---------------------------------------------------------------------------- #
 echo "Testing Postgres connection..."
-node ./scripts/test-db.js
+node ./scripts/test_db.js
 
 # ---------------------------------------------------------------------------- #
 echo "Updating NGINX config..."
