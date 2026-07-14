@@ -71,6 +71,14 @@ app.post("/api/photo", upload.array(image_form_field), async (req, res) => {
                 if (!req.files || req.files.length === 0) throw new Error("No files uploaded");
 
                 const { title, caption } = req.body;
+
+                if (title.length > 100) {
+                        return res.status(400).send("Title must be less than 100 characters.");
+                }
+                if (caption.length > 500) {
+                        return res.status(400).send("Caption must be less than 500 characters.");
+                }
+
                 const now = new Date();
                 const dateTime = now.toISOString();
                 const dateOnly = dateTime.split("T")[0];
@@ -190,14 +198,22 @@ app.post("/api/photo/edit", async (req, res) => {
                 console.log("Request to edit image received");
                 client = await db.connect();
                 await client.query("BEGIN");
-                
+
                 let { title, caption, imageEndpoint } = req.body;
-                if (!title){
-                        title=""
-                };
+                
+                if (title.length > 100) {
+                        return res.status(400).send("Title must be less than 100 characters.");
+                }
+                if (caption.length > 500) {
+                        return res.status(400).send("Caption must be less than 500 characters.");
+                }
+
+                if (!title) {
+                        title = "";
+                }
                 if (!caption) {
                         caption = "";
-                };
+                }
                 if (!imageEndpoint) return res.status(400).send("Missing imageEndpoint");
 
                 // Extract the hash (id) from the filename
