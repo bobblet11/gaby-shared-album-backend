@@ -5,7 +5,7 @@
 
 BEGIN;
 
-CREATE TABLE photos IF NOT EXISTS (
+CREATE TABLE IF NOT EXISTS photos  (
     id TEXT NOT NULL,
     title TEXT,
     caption TEXT,

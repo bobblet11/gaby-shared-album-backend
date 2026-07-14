@@ -5,7 +5,7 @@
 
 BEGIN;
 
-CREATE TABLE accounts_to_photos IF NOT EXISTS (
+CREATE TABLE IF NOT EXISTS accounts_to_photos  (
     id SERIAL PRIMARY KEY,              -- auto-incrementing integer
     account_id INT NOT NULL,
     photo_id VARCHAR(100) NOT NULL,

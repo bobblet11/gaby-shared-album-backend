@@ -6,7 +6,7 @@
 
 BEGIN;
 
-CREATE TABLE accounts IF NOT EXISTS (
+CREATE TABLE IF NOT EXISTS accounts (
     id SERIAL PRIMARY KEY,              -- auto-incrementing integer
     username VARCHAR(50) NOT NULL,      -- string up to 50 chars
     email VARCHAR(255) UNIQUE NOT NULL, -- unique constraint
