@@ -26,6 +26,14 @@ echo "Testing Postgres connection..."
 node ./scripts/test_db.js
 
 # ---------------------------------------------------------------------------- #
+echo "Checking database migration status..."
+sudo npm run migrate:status
+
+# ---------------------------------------------------------------------------- #
+echo "Running database migration..."
+sudo npm run migrate:up
+
+# ---------------------------------------------------------------------------- #
 echo "Updating NGINX config..."
 sudo cp ./nginx/gaby-shared-album.com /etc/nginx/sites-available/gaby-shared-album.com
 sudo ln -sf /etc/nginx/sites-available/gaby-shared-album.com /etc/nginx/sites-enabled/
