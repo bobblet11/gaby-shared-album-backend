@@ -12,6 +12,6 @@ ON CONFLICT (id) DO NOTHING;
 
 ALTER TABLE IF EXISTS photos
     ADD COLUMN account_id INT NOT NULL DEFAULT 1,
-    ADD CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts 
+    ADD CONSTRAINT fk_account FOREIGN KEY (account_id) REFERENCES accounts ;
     
 COMMIT;
