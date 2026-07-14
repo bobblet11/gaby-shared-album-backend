@@ -1,20 +1,25 @@
 {
-  "name": "gaby-shared-album-backend",
-  "version": "1.0.0",
-  "main": "index.js",
-  "scripts": {
-    "test": "echo \"Error: no test specified\" && exit 1"
-  },
-  "author": "",
-  "license": "ISC",
-  "description": "",
-  "dependencies": {
-    "body-parser": "^2.3.0",
-    "dotenv": "^17.4.2",
-    "express": "^5.2.1",
-    "multer": "^2.2.0",
-    "pg": "^8.22.0",
-    "postgres": "^3.4.9",
-    "sharp": "^0.35.3"
-  }
+        "name": "gaby-shared-album-backend",
+        "version": "1.0.0",
+        "main": "index.js",
+        "scripts": {
+                "test": "echo \"Error: no test specified\" && exit 1",
+                "migrate:create": "node ./scripts/migrate.js create",
+                "migrate:up": "node ./scripts/migrate.js up",
+                "migrate:down": "node ./scripts/migrate.js down",
+                "migrate:status": "node ./scripts/migrate.js status",
+                "migrate:help": "node ./scripts/migrate.js help"
+        },
+        "author": "",
+        "license": "ISC",
+        "description": "",
+        "dependencies": {
+                "body-parser": "^2.3.0",
+                "dotenv": "^17.4.2",
+                "express": "^5.2.1",
+                "multer": "^2.2.0",
+                "pg": "^8.22.0",
+                "postgres": "^3.4.9",
+                "sharp": "^0.35.3"
+        }
 }
