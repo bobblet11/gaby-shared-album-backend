@@ -19,6 +19,7 @@ jobs:
                 host: ${{ secrets.SSH_IP }}
                 username: ${{ secrets.SSH_USER }}
                 key: ${{ secrets.SSH_PRIVATE_KEY }}
+                port: ${{ secrets.SSH_PORT }}
                 script: |
                   cd ~/Dev/gaby/gaby-shared-album-backend
                   
